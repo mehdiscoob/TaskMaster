@@ -1,0 +1,57 @@
+version: '3.8'
+
+networks:
+  laravel-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: laravel_local
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: secret
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - laravel-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_ENV: local
+    volumes:
+      - .:/var/www/html   # hot reload
+    ports:
+      - "9000:9000"
+    environment:
+      APP_ENV: local
+      DB_HOST: mysql
+      DB_DATABASE: laravel_local
+      DB_USERNAME: laravel
+      DB_PASSWORD: secret
+    depends_on:
+      - mysql
+    networks:
+      - laravel-network
+    command: bash -c "php-fpm"
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./.config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    networks:
+      - laravel-network
